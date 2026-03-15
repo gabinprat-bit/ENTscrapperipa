@@ -7,24 +7,31 @@ import '../models/models.dart';
 
 class AppState extends ChangeNotifier {
   // ── Auth ───────────────────────────────────────────────────────────────────
-  bool isLoggedIn  = false;
-  bool isLoading   = false;
-  String loginError = '';
-  String userName  = '';
+  bool   isLoggedIn  = false;
+  bool   isLoading   = false;
+  String loginError  = '';
+  String userName    = '';
+  String serverUrl   = '';
   String? _token;
-  String serverUrl = '';
 
   // ── Prefs ──────────────────────────────────────────────────────────────────
   bool notifNotes   = true;
   bool notifDevoirs = true;
   bool activeMode   = true;
-  bool prefsSet     = false;
+  bool prefsSet     = false;  // true = configuré une seule fois
 
   // ── Data ───────────────────────────────────────────────────────────────────
   List<NoteMatiere> notes   = [];
   List<Devoir>      devoirs = [];
-  String            lastUpdate = '';
   bool              dataLoading = false;
+
+  // ── Moyenne générale ───────────────────────────────────────────────────────
+  String? get moyenneGenerale {
+    final vals = notes.map((m) => m.moyenneNum).whereType<double>().toList();
+    if (vals.isEmpty) return null;
+    final avg = vals.reduce((a, b) => a + b) / vals.length;
+    return avg.toStringAsFixed(2).replaceAll('.', ',');
+  }
 
   // ── Services ───────────────────────────────────────────────────────────────
   final _storage = StorageService();
@@ -56,8 +63,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    isLoading  = true;
-    loginError = '';
+    isLoading = true; loginError = '';
     notifyListeners();
 
     _api = ApiService(serverUrl: serverUrl);
@@ -66,9 +72,9 @@ class AppState extends ChangeNotifier {
     if (result['ok'] == true) {
       _token   = result['token'] as String;
       userName = result['user']  as String? ?? identifiant;
-      isLoggedIn = true;
       await _storage.saveToken(_token!);
       await _storage.saveUserName(userName);
+      isLoggedIn = true;
       await fetchData();
       if (activeMode) _startPolling();
     } else {
@@ -78,6 +84,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Restore session silencieuse au démarrage ───────────────────────────────
+  Future<void> _tryRestoreSession() async {
+    final result = await _api!.fetchData(_token!);
+    if (result['ok'] == true) {
+      _parseDataResult(result);
+      isLoggedIn = true;
+      if (activeMode) _startPolling();
+    } else {
+      // Token expiré
+      _token = null;
+      await _storage.deleteToken();
+    }
+  }
+
   // ── Fetch data ─────────────────────────────────────────────────────────────
   Future<void> fetchData() async {
     if (_token == null || _api == null) return;
@@ -85,35 +105,37 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final result = await _api!.fetchData(_token!);
-
     if (result['ok'] == true) {
-      notes = (result['notes'] as List<dynamic>)
-          .map((e) => NoteMatiere.fromJson(e as Map<String, dynamic>))
-          .toList();
-      devoirs = (result['devoirs'] as List<dynamic>)
-          .map((e) => Devoir.fromJson(e as Map<String, dynamic>))
-          .toList();
-      lastUpdate = result['last_update'] as String? ?? '';
-
-      // Notifs
-      final notifsList = result['notifications'] as List<dynamic>? ?? [];
-      for (final n in notifsList) {
-        final notif = ServerNotif.fromJson(n as Map<String, dynamic>);
-        if (notif.type == 'note'   && notifNotes)   await _notifs.show(notif.title, notif.body);
-        if (notif.type == 'devoir' && notifDevoirs) await _notifs.show(notif.title, notif.body);
-      }
+      _parseDataResult(result);
     } else {
-      // Session expirée
+      // Session expirée côté serveur
       isLoggedIn = false;
-      _token     = null;
+      _token = null;
       await _storage.deleteToken();
     }
     dataLoading = false;
     notifyListeners();
   }
 
-  Future<String> fetchDevoirDetail(String url) async {
-    if (_token == null || _api == null) return 'Non connecté.';
+  void _parseDataResult(Map<String, dynamic> result) {
+    notes = (result['notes'] as List? ?? [])
+        .map((e) => NoteMatiere.fromJson(e as Map<String, dynamic>))
+        .toList();
+    devoirs = (result['devoirs'] as List? ?? [])
+        .map((e) => Devoir.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    // Notifs locales
+    for (final n in (result['notifications'] as List? ?? [])) {
+      final notif = ServerNotif.fromJson(n as Map<String, dynamic>);
+      if (notif.type == 'note'   && notifNotes)   _notifs.show(notif.title, notif.body);
+      if (notif.type == 'devoir' && notifDevoirs) _notifs.show(notif.title, notif.body);
+    }
+  }
+
+  // ── Détail devoir ──────────────────────────────────────────────────────────
+  Future<DevoirSections?> fetchDevoirDetail(String url) async {
+    if (_token == null || _api == null) return null;
     return _api!.fetchDevoirDetail(_token!, url);
   }
 
@@ -122,88 +144,33 @@ class AppState extends ChangeNotifier {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => fetchData());
   }
-
-  void stopPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
-  }
-
-  void startPolling() {
-    if (isLoggedIn) _startPolling();
-  }
+  void stopPolling()  { _pollTimer?.cancel(); _pollTimer = null; }
+  void startPolling() { if (isLoggedIn) _startPolling(); }
 
   // ── Prefs setters ──────────────────────────────────────────────────────────
-  Future<void> setNotifNotes(bool v) async {
-    notifNotes = v;
-    await _storage.setNotifNotes(v);
-    notifyListeners();
-  }
-
-  Future<void> setNotifDevoirs(bool v) async {
-    notifDevoirs = v;
-    await _storage.setNotifDevoirs(v);
-    notifyListeners();
-  }
-
-  Future<void> setActiveMode(bool v) async {
-    activeMode = v;
-    await _storage.setActiveMode(v);
+  Future<void> setNotifNotes(bool v)   async { notifNotes   = v; await _storage.setNotifNotes(v);   notifyListeners(); }
+  Future<void> setNotifDevoirs(bool v) async { notifDevoirs = v; await _storage.setNotifDevoirs(v); notifyListeners(); }
+  Future<void> setActiveMode(bool v)   async {
+    activeMode = v; await _storage.setActiveMode(v);
     if (v) _startPolling(); else stopPolling();
     notifyListeners();
   }
-
-  Future<void> setPrefsSet(bool v) async {
-    prefsSet = v;
-    await _storage.setPrefsSet(v);
-    notifyListeners();
-  }
-
-  Future<void> setServerUrl(String url) async {
-    serverUrl = url;
-    await _storage.saveServerUrl(url);
-    notifyListeners();
-  }
+  Future<void> setPrefsSet(bool v)     async { prefsSet = v; await _storage.setPrefsSet(v); notifyListeners(); }
+  Future<void> setServerUrl(String v)  async { serverUrl = v; await _storage.saveServerUrl(v); notifyListeners(); }
 
   // ── Toggle devoir fait ─────────────────────────────────────────────────────
   void toggleDevoir(String id) {
     final idx = devoirs.indexWhere((d) => d.id == id);
-    if (idx != -1) {
-      devoirs[idx].fait = !devoirs[idx].fait;
-      notifyListeners();
-    }
+    if (idx != -1) { devoirs[idx].fait = !devoirs[idx].fait; notifyListeners(); }
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     if (_token != null && _api != null) await _api!.logout(_token!);
     stopPolling();
-    _token     = null;
-    isLoggedIn = false;
-    prefsSet   = false;
-    notes      = [];
-    devoirs    = [];
-    userName   = '';
-    await _storage.deleteToken();
-    await _storage.setPrefsSet(false);
+    _token = null; isLoggedIn = false; prefsSet = false;
+    notes = []; devoirs = []; userName = '';
+    await _storage.clearAll();
     notifyListeners();
-  }
-
-  // ── Restore session ────────────────────────────────────────────────────────
-  Future<void> _tryRestoreSession() async {
-    final result = await _api!.fetchData(_token!);
-    if (result['ok'] == true) {
-      notes = (result['notes'] as List<dynamic>)
-          .map((e) => NoteMatiere.fromJson(e as Map<String, dynamic>))
-          .toList();
-      devoirs = (result['devoirs'] as List<dynamic>)
-          .map((e) => Devoir.fromJson(e as Map<String, dynamic>))
-          .toList();
-      lastUpdate = result['last_update'] as String? ?? '';
-      isLoggedIn = true;
-      if (activeMode) _startPolling();
-    } else {
-      _token = null;
-      await _storage.deleteToken();
-    }
   }
 }
