@@ -29,27 +29,20 @@ jobs:
         run: pod install
         working-directory: ios
 
-      - name: Fix Xcode signing
+      - name: Build iOS (no codesign)
         run: |
-          cd ios/Runner.xcodeproj
-          # Remplacer DEVELOPMENT_TEAM par vide
-          perl -i -pe 's/DEVELOPMENT_TEAM = \S+;//g' project.pbxproj
-          # Désactiver code signing
-          perl -i -pe 's/CODE_SIGN_IDENTITY = ".*?";//g' project.pbxproj
-          perl -i -pe 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' project.pbxproj
-          perl -i -pe 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' project.pbxproj
-          perl -i -pe 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' project.pbxproj
+          flutter build ios --release --no-codesign \
+            --build-name=1.0.0 \
+            --build-number=1
 
-      - name: Flutter build iOS (no codesign)
+      - name: Build IPA manually
         run: |
-          flutter build ios --release --no-codesign
-
-      - name: Create IPA
-        run: |
+          cd build/ios/iphoneos
           mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r ENT.ipa Payload
-          echo "✅ IPA créé : $(du -sh ENT.ipa)"
+          cp -r Runner.app Payload/
+          zip -r ../../../ENT.ipa Payload/
+          cd ../../..
+          echo "✅ IPA size: $(du -sh ENT.ipa)"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
