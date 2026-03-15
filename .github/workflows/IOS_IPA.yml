@@ -27,16 +27,8 @@ jobs:
         run: pod install
         working-directory: ios
 
-      - name: Force disable code signing
+      - name: Disable code signing via xcconfig
         run: |
-          # Modifier project.pbxproj
-          plutil -convert xml1 ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/DEVELOPMENT_TEAM/d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/CODE_SIGN_IDENTITY/d' ios/Runner.xcodeproj/project.pbxproj || true
-          plutil -convert binary1 ios/Runner.xcodeproj/project.pbxproj
-
-          # Modifier les xcconfig files Flutter
           echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Release.xcconfig
           echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Release.xcconfig
           echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Release.xcconfig
@@ -45,9 +37,7 @@ jobs:
           echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Debug.xcconfig
 
       - name: Build iOS release (no codesign)
-        run: |
-          flutter build ios --release --no-codesign \
-            --dart-define=FLUTTER_WEB_USE_SKIA=false
+        run: flutter build ios --release --no-codesign
 
       - name: Create IPA
         run: |
