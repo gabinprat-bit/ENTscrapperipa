@@ -1,50 +1,67 @@
 name: iOS IPA Build
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+workflow_dispatch:
+push:
+branches: [main]
 
 jobs:
-  build-ios:
-    name: Build iOS IPA
-    runs-on: macos-latest
+build-ios:
+name: Build iOS IPA
+runs-on: macos-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          architecture: x64
+  - name: Setup Flutter
+    uses: subosito/flutter-action@v2
+    with:
+      channel: 'stable'
+      architecture: x64
 
-      - name: Flutter pub get
-        run: flutter pub get
+  - name: Flutter pub get
+    run: flutter pub get
 
-      - name: Pod repo update
-        run: pod repo update
-        working-directory: ios
+  - name: Pod install
+    run: pod install
+    working-directory: ios
 
-      - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+  - name: Force disable code signing
+    run: |
+      # Modifier project.pbxproj
+      plutil -convert xml1 ios/Runner.xcodeproj/project.pbxproj
+      sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj || true
+      sed -i '' '/DEVELOPMENT_TEAM/d' ios/Runner.xcodeproj/project.pbxproj || true
+      sed -i '' '/CODE_SIGN_IDENTITY/d' ios/Runner.xcodeproj/project.pbxproj || true
+      plutil -convert binary1 ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Create Payload
-        run: mkdir Payload
-        working-directory: build/ios/iphoneos
+      # Modifier les xcconfig files Flutter
+      echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Release.xcconfig
+      echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Release.xcconfig
+      echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Release.xcconfig
+      echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Debug.xcconfig
+      echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Debug.xcconfig
+      echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Debug.xcconfig
 
-      - name: Move Runner.app to Payload
-        run: mv Runner.app/ Payload
-        working-directory: build/ios/iphoneos
+  - name: Build iOS release (no codesign)
+    run: |
+      flutter build ios --release --no-codesign \
+        --dart-define=FLUTTER_WEB_USE_SKIA=false
 
-      - name: Zip IPA
-        run: zip -qq -r -9 ENT.ipa Payload
-        working-directory: build/ios/iphoneos
+  - name: Create IPA
+    run: |
+      cd build/ios/iphoneos
+      mkdir -p Payload
+      cp -r Runner.app Payload/
+      zip -r ENT.ipa Payload/
+      echo "✅ IPA: $(du -sh ENT.ipa)"
 
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ENT-IPA
-          path: build/ios/iphoneos/ENT.ipa
-          retention-days: 30
+  - name: Upload IPA
+    uses: actions/upload-artifact@v4
+    with:
+      name: ENT-IPA
+      path: build/ios/iphoneos/ENT.ipa
+      retention-days: 30
+```
