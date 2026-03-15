@@ -1,0 +1,46 @@
+name: iOS IPA Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  iOS-ipa-build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Pod install
+        run: pod install
+        working-directory: ios
+
+      - name: Flutter build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create Payload folder
+        run: mkdir -p Payload
+
+      - name: Move Runner.app to Payload
+        run: mv build/ios/iphoneos/Runner.app Payload/
+
+      - name: Zip into IPA
+        run: zip -r ENT.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: ENT-IPA
+          path: ENT.ipa
+          retention-days: 30
