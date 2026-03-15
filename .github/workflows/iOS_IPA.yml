@@ -25,21 +25,30 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Fix iOS bundle ID and remove signing
+        run: |
+          cd ios
+          # Supprimer les références au Development Team
+          sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;//g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = [^;]*;//g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' Runner.xcodeproj/project.pbxproj
+
       - name: Pod install
         run: pod install
         working-directory: ios
 
       - name: Flutter build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=FLUTTER_WEB_USE_SKIA=true
 
-      - name: Create Payload folder
-        run: mkdir -p Payload
-
-      - name: Move Runner.app to Payload
-        run: mv build/ios/iphoneos/Runner.app Payload/
-
-      - name: Zip into IPA
-        run: zip -r ENT.ipa Payload
+      - name: Create IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r ENT.ipa Payload
+          echo "✅ IPA créé : $(du -sh ENT.ipa)"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
