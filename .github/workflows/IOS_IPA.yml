@@ -1,52 +1,50 @@
 name: iOS IPA Build
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-  workflow_dispatch:
 
 jobs:
-  iOS-ipa-build:
+  build-ios:
+    name: Build iOS IPA
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
-
-      - name: Disable analytics
-        run: flutter config --no-analytics
+          architecture: x64
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Pod install
-        run: pod install
+      - name: Pod repo update
+        run: pod repo update
         working-directory: ios
 
       - name: Build iOS (no codesign)
-        run: |
-          flutter build ios --release --no-codesign \
-            --build-name=1.0.0 \
-            --build-number=1
+        run: flutter build ios --release --no-codesign
 
-      - name: Build IPA manually
-        run: |
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../../../ENT.ipa Payload/
-          cd ../../..
-          echo "✅ IPA size: $(du -sh ENT.ipa)"
+      - name: Create Payload
+        run: mkdir Payload
+        working-directory: build/ios/iphoneos
 
-      - name: Upload IPA
+      - name: Move Runner.app to Payload
+        run: mv Runner.app/ Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Zip IPA
+        run: zip -qq -r -9 ENT.ipa Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ENT-IPA
-          path: ENT.ipa
+          path: build/ios/iphoneos/ENT.ipa
           retention-days: 30
