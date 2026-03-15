@@ -11,13 +11,16 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
+          flutter-version: '3.24.0'
           channel: 'stable'
+
+      - name: Disable analytics
+        run: flutter config --no-analytics
 
       - name: Flutter pub get
         run: flutter pub get
