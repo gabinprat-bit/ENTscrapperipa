@@ -39,7 +39,7 @@ jobs:
         run: zip -r ENT.ipa Payload
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ENT-IPA
           path: ENT.ipa
