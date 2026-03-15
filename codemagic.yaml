@@ -1,0 +1,39 @@
+workflows:
+  ios-ipa:
+    name: iOS IPA Build
+    max_build_duration: 60
+    environment:
+      flutter: 3.24.0
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Disable analytics
+        script: flutter config --no-analytics
+
+      - name: Get dependencies
+        script: flutter pub get
+
+      - name: Pod install
+        script: |
+          cd ios && pod install
+
+      - name: Fix signing in project.pbxproj
+        script: |
+          cd ios/Runner.xcodeproj
+          perl -i -pe 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' project.pbxproj
+          perl -i -pe 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = ".*?";//g' project.pbxproj
+          perl -i -pe 's/DEVELOPMENT_TEAM = \S+?;//g' project.pbxproj
+
+      - name: Build iOS no codesign
+        script: |
+          flutter build ios --release --no-codesign
+
+      - name: Create IPA
+        script: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r ENT.ipa Payload/
+
+    artifacts:
+      - ENT.ipa
