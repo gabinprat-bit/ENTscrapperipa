@@ -11,7 +11,8 @@ class AppState extends ChangeNotifier {
   bool   isLoading   = false;
   String loginError  = '';
   String userName    = '';
-  String serverUrl   = '';
+  // URL du serveur KataBump — pré-remplie, modifiable dans Settings
+  String serverUrl   = 'http://51.75.118.5:20119';
   String? _token;
 
   // ── Prefs ──────────────────────────────────────────────────────────────────
@@ -41,7 +42,8 @@ class AppState extends ChangeNotifier {
 
   // ── Init ───────────────────────────────────────────────────────────────────
   Future<void> init() async {
-    serverUrl     = await _storage.getServerUrl() ?? '';
+    // Charger l'URL sauvegardée, sinon garder la valeur par défaut hardcodée
+    serverUrl = await _storage.getServerUrl() ?? serverUrl;
     notifNotes    = await _storage.getNotifNotes();
     notifDevoirs  = await _storage.getNotifDevoirs();
     activeMode    = await _storage.getActiveMode();
