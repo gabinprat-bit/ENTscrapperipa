@@ -25,23 +25,24 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Fix iOS bundle ID and remove signing
-        run: |
-          cd ios
-          # Supprimer les références au Development Team
-          sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;//g' Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY = [^;]*;//g' Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' Runner.xcodeproj/project.pbxproj
-
       - name: Pod install
         run: pod install
         working-directory: ios
 
+      - name: Fix Xcode signing
+        run: |
+          cd ios/Runner.xcodeproj
+          # Remplacer DEVELOPMENT_TEAM par vide
+          perl -i -pe 's/DEVELOPMENT_TEAM = \S+;//g' project.pbxproj
+          # Désactiver code signing
+          perl -i -pe 's/CODE_SIGN_IDENTITY = ".*?";//g' project.pbxproj
+          perl -i -pe 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' project.pbxproj
+          perl -i -pe 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' project.pbxproj
+          perl -i -pe 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' project.pbxproj
+
       - name: Flutter build iOS (no codesign)
         run: |
-          flutter build ios --release --no-codesign \
-            --dart-define=FLUTTER_WEB_USE_SKIA=true
+          flutter build ios --release --no-codesign
 
       - name: Create IPA
         run: |
