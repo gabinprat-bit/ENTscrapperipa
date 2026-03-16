@@ -26,7 +26,7 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
     final state = context.read<AppState>();
     if (widget.devoir.detailUrl != null) {
       final desc = await state.fetchDevoirDetail(widget.devoir.detailUrl!);
-      if (mounted) setState(() { _description = desc; _loading = false; });
+     if (mounted) setState(() { _description = desc ?? ''; _loading = false; });
     } else {
       setState(() {
         _description = '${widget.devoir.matiere} · ${widget.devoir.type}\n\nTravail à rendre pour le ${widget.devoir.pourLe}.\nDonné le ${widget.devoir.donneLe}.';
