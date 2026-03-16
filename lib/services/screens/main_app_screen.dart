@@ -78,7 +78,7 @@ class _Header extends StatelessWidget {
   }
 
   void _openSettings(BuildContext ctx, AppState state) {
-    showModalBottomSheet(ctx: ctx, isScrollControlled: true, backgroundColor: Colors.transparent,
+    showModalBottomSheet(context: ctx, isScrollControlled: true, backgroundColor: Colors.transparent,
         builder: (_) => ChangeNotifierProvider.value(value: state, child: const _SettingsSheet()));
   }
 
