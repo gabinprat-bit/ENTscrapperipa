@@ -161,7 +161,7 @@ class _Tab extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
       alignment: Alignment.center,
       child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-          color: current == idx ? Colors.white : Colors.white45)),
+          color: current == idx ? Colors.white : Colors.white54)),
     ),
   ));
 }
