@@ -1,4 +1,4 @@
-// ── Note ────────────────────────────────────────────────────────────────────
+import 'package:flutter/painting.dart';
 
 class NoteEval {
   final String id;
@@ -18,12 +18,12 @@ class NoteEval {
   });
 
   factory NoteEval.fromJson(Map<String, dynamic> j) => NoteEval(
-    id:          j['id']          as String,
-    valeur:      (j['valeur']     as num).toDouble(),
-    bareme:      (j['bareme']     as num).toDouble(),
-    titre:       j['titre']       as String,
-    date:        j['date']        as String,
-    coefficient: (j['coefficient'] as num).toDouble(),
+    id:           j['id']           as String,
+    valeur:       (j['valeur']      as num).toDouble(),
+    bareme:       (j['bareme']      as num).toDouble(),
+    titre:        j['titre']        as String,
+    date:         j['date']         as String,
+    coefficient:  (j['coefficient'] as num).toDouble(),
   );
 
   String get appreciation {
@@ -60,21 +60,21 @@ class NoteMatiere {
   factory NoteMatiere.fromJson(Map<String, dynamic> j) => NoteMatiere(
     matiere: j['matiere'] as String,
     moyenne: j['moyenne'] as String? ?? '',
-    evals: (j['evals'] as List<dynamic>)
+    evals:   (j['evals'] as List<dynamic>)
         .map((e) => NoteEval.fromJson(e as Map<String, dynamic>))
         .toList(),
   );
 
+  double? get moyenneNum => double.tryParse(moyenne.replaceAll(',', '.'));
+
   Color get moyenneColor {
-    final n = double.tryParse(moyenne.replaceAll(',', '.'));
+    final n = moyenneNum;
     if (n == null) return const Color(0xFFFFFFFF);
-    if (n >= 14) return const Color(0xFF6FCF97);
-    if (n >= 10) return const Color(0xFFF2994A);
+    if (n >= 14)   return const Color(0xFF6FCF97);
+    if (n >= 10)   return const Color(0xFFF2994A);
     return const Color(0xFFEB5757);
   }
 }
-
-// ── Devoir ───────────────────────────────────────────────────────────────────
 
 class Devoir {
   final String id;
@@ -96,17 +96,29 @@ class Devoir {
   });
 
   factory Devoir.fromJson(Map<String, dynamic> j) => Devoir(
-    id:        j['id']        as String,
-    matiere:   j['matiere']   as String,
-    pourLe:    j['pour_le']   as String,
-    donneLe:   j['donne_le']  as String,
-    type:      j['type']      as String,
+    id:        j['id']         as String,
+    matiere:   j['matiere']    as String,
+    pourLe:    j['pour_le']    as String,
+    donneLe:   j['donne_le']   as String,
+    type:      j['type']       as String,
     detailUrl: j['detail_url'] as String?,
-    fait:      j['fait']      as bool? ?? false,
+    fait:      j['fait']       as bool? ?? false,
   );
 }
 
-// ── ServerNotif ──────────────────────────────────────────────────────────────
+class ServerNotif {
+  final String type;
+  final String title;
+  final String body;
+
+  const ServerNotif({required this.type, required this.title, required this.body});
+
+  factory ServerNotif.fromJson(Map<String, dynamic> j) => ServerNotif(
+    type:  j['type']  as String,
+    title: j['title'] as String,
+    body:  j['body']  as String,
+  );
+}
 
 class ServerNotif {
   final String type;
