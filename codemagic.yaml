@@ -1,47 +1,12 @@
 workflows:
-  ios-ipa:
-    name: iOS IPA Build
-    max_build_duration: 60
-    environment:
-      flutter: 3.24.0
+  ios-release-no-shorebird:
+    name: iOS release (No Shorebird)
+    environnement:
+      flutter: stable
       xcode: latest
-      cocoapods: default
-
     scripts:
-      - name: Disable analytics
-        script: flutter config --no-analytics
-
-      - name: Get dependencies
-        script: flutter pub get
-
-      - name: Pod install
-        script: cd ios && pod install
-
-      - name: Strip all code signing
-        script: |
-          cd ios/Runner.xcodeproj
-          perl -i -pe '
-            s/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g;
-            s/CODE_SIGN_IDENTITY = ".*?";//g;
-            s/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = ".*?";//g;
-            s/CODE_SIGN_IDENTITY = "Apple Development";//g;
-            s/CODE_SIGN_IDENTITY = "iPhone Developer";//g;
-            s/DEVELOPMENT_TEAM = [A-Z0-9]*;//g;
-            s/PROVISIONING_PROFILE = ".*?";//g;
-            s/PROVISIONING_PROFILE_SPECIFIER = ".*?";//g;
-          ' project.pbxproj
-          echo "CODE_SIGNING_REQUIRED = NO;" >> project.pbxproj
-          echo "CODE_SIGNING_ALLOWED = NO;" >> project.pbxproj
-
-      - name: Build iOS no codesign
-        script: |
-          flutter build ios --release --no-codesign
-
-      - name: Create IPA
-        script: |
-          mkdir -p build/ios/ipa/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
-          cd build/ios/ipa && zip -r ENT.ipa Payload/
-
+       - flutter build ios --simulator
+       - mkdir -p build/ios/ipa
+       - zip -r build/ios/ipa/Runner.app zip build/ios/iphonessimulator/Runner.app
     artifacts:
-      - build/ios/ipa/ENT.ipa
+       - build/ios/ipa/Runner.app.zip
