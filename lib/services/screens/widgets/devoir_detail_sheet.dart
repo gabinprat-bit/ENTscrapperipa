@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/models.dart';
-import '../services/app_state.dart';
-import '../screens/main_app_screen.dart' show matiereColor;
+import '../../../models/models.dart';
+import '../../app_state.dart';
+import '../main_app_screen.dart' show matiereColor;
 
 class DevoirDetailSheet extends StatefulWidget {
   final Devoir devoir;
