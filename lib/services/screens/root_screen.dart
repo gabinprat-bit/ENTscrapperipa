@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/app_state.dart';
-import '../widgets/space_background.dart';
+import '../app_state.dart';
+import 'widgets/space_background.dart';
 import 'login_screen.dart';
 import 'notif_setup_screen.dart';
 import 'main_app_screen.dart';
@@ -33,10 +33,7 @@ class _RootScreenState extends State<RootScreen> {
             backgroundColor: Colors.black,
             body: Stack(
               children: [
-                // Fond spatial permanent
                 const SpaceBackground(),
-
-                // Écran actif
                 if (!_initialized)
                   const _LoadingScreen()
                 else if (!state.isLoggedIn)
