@@ -120,20 +120,6 @@ class ServerNotif {
   );
 }
 
-class ServerNotif {
-  final String type;
-  final String title;
-  final String body;
-
-  const ServerNotif({required this.type, required this.title, required this.body});
-
-  factory ServerNotif.fromJson(Map<String, dynamic> j) => ServerNotif(
-    type:  j['type']  as String,
-    title: j['title'] as String,
-    body:  j['body']  as String,
-  );
-}
-
 // ── Couleur (import sans dart:ui) ────────────────────────────────────────────
 // ignore: depend_on_referenced_packages
 import 'package:flutter/painting.dart';
