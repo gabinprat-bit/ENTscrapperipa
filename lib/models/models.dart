@@ -122,4 +122,3 @@ class ServerNotif {
 
 // ── Couleur (import sans dart:ui) ────────────────────────────────────────────
 // ignore: depend_on_referenced_packages
-import 'package:flutter/painting.dart';
