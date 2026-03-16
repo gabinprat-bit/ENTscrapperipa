@@ -1,178 +1,121 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'api_service.dart';
-import 'storage_service.dart';
-import 'notification_service.dart';
-import '../models/models.dart';
+import 'package:flutter/painting.dart';
 
-class AppState extends ChangeNotifier {
-  // ── Auth ───────────────────────────────────────────────────────────────────
-  bool   isLoggedIn  = false;
-  bool   isLoading   = false;
-  String loginError  = '';
-  String userName    = '';
-  // URL du serveur KataBump — pré-remplie, modifiable dans Settings
-  String serverUrl   = 'http://51.75.118.5:20119';
-  String? _token;
+class NoteEval {
+  final String id;
+  final double valeur;
+  final double bareme;
+  final String titre;
+  final String date;
+  final double coefficient;
 
-  // ── Prefs ──────────────────────────────────────────────────────────────────
-  bool notifNotes   = true;
-  bool notifDevoirs = true;
-  bool activeMode   = true;
-  bool prefsSet     = false;  // true = configuré une seule fois
+  const NoteEval({
+    required this.id,
+    required this.valeur,
+    required this.bareme,
+    required this.titre,
+    required this.date,
+    required this.coefficient,
+  });
 
-  // ── Data ───────────────────────────────────────────────────────────────────
-  List<NoteMatiere> notes   = [];
-  List<Devoir>      devoirs = [];
-  bool              dataLoading = false;
+  factory NoteEval.fromJson(Map<String, dynamic> j) => NoteEval(
+    id:           j['id']           as String,
+    valeur:       (j['valeur']      as num).toDouble(),
+    bareme:       (j['bareme']      as num).toDouble(),
+    titre:        j['titre']        as String,
+    date:         j['date']         as String,
+    coefficient:  (j['coefficient'] as num).toDouble(),
+  );
 
-  // ── Moyenne générale ───────────────────────────────────────────────────────
-  String? get moyenneGenerale {
-    final vals = notes.map((m) => m.moyenneNum).whereType<double>().toList();
-    if (vals.isEmpty) return null;
-    final avg = vals.reduce((a, b) => a + b) / vals.length;
-    return avg.toStringAsFixed(2).replaceAll('.', ',');
+  String get appreciation {
+    final p = valeur / bareme * 100;
+    if (p >= 90) return 'Excellent ! 🏆';
+    if (p >= 80) return 'Très bien ! 🎉';
+    if (p >= 70) return 'Bien ! 👍';
+    if (p >= 60) return 'Correct 😊';
+    if (p >= 50) return 'Peut mieux faire 💪';
+    if (p >= 40) return 'Insuffisant 😬';
+    return 'À rattraper 💡';
   }
 
-  // ── Services ───────────────────────────────────────────────────────────────
-  final _storage = StorageService();
-  final _notifs  = NotificationService();
-  ApiService? _api;
-  Timer? _pollTimer;
+  String get valeurStr => valeur == valeur.roundToDouble()
+      ? valeur.toInt().toString()
+      : valeur.toStringAsFixed(1);
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  Future<void> init() async {
-    // Charger l'URL sauvegardée, sinon garder la valeur par défaut hardcodée
-    serverUrl = await _storage.getServerUrl() ?? serverUrl;
-    notifNotes    = await _storage.getNotifNotes();
-    notifDevoirs  = await _storage.getNotifDevoirs();
-    activeMode    = await _storage.getActiveMode();
-    prefsSet      = await _storage.getPrefsSet();
-    userName      = await _storage.getUserName();
-    _token        = await _storage.getToken();
+  String get baremeStr => bareme == bareme.roundToDouble()
+      ? bareme.toInt().toString()
+      : bareme.toStringAsFixed(1);
+}
 
-    if (_token != null && serverUrl.isNotEmpty) {
-      _api = ApiService(serverUrl: serverUrl);
-      await _tryRestoreSession();
-    }
-    notifyListeners();
+class NoteMatiere {
+  final String matiere;
+  final String moyenne;
+  final List<NoteEval> evals;
+
+  const NoteMatiere({
+    required this.matiere,
+    required this.moyenne,
+    required this.evals,
+  });
+
+  factory NoteMatiere.fromJson(Map<String, dynamic> j) => NoteMatiere(
+    matiere: j['matiere'] as String,
+    moyenne: j['moyenne'] as String? ?? '',
+    evals:   (j['evals'] as List<dynamic>)
+        .map((e) => NoteEval.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
+  double? get moyenneNum => double.tryParse(moyenne.replaceAll(',', '.'));
+
+  Color get moyenneColor {
+    final n = moyenneNum;
+    if (n == null) return const Color(0xFFFFFFFF);
+    if (n >= 14)   return const Color(0xFF6FCF97);
+    if (n >= 10)   return const Color(0xFFF2994A);
+    return const Color(0xFFEB5757);
   }
+}
 
-  // ── Login ──────────────────────────────────────────────────────────────────
-  Future<void> login(String identifiant, String mdp) async {
-    if (serverUrl.isEmpty) {
-      loginError = 'Configure d\'abord l\'URL du serveur.';
-      notifyListeners();
-      return;
-    }
-    isLoading = true; loginError = '';
-    notifyListeners();
+class Devoir {
+  final String id;
+  final String matiere;
+  final String pourLe;
+  final String donneLe;
+  final String type;
+  final String? detailUrl;
+  bool fait;
 
-    _api = ApiService(serverUrl: serverUrl);
-    final result = await _api!.login(identifiant, mdp);
+  Devoir({
+    required this.id,
+    required this.matiere,
+    required this.pourLe,
+    required this.donneLe,
+    required this.type,
+    this.detailUrl,
+    required this.fait,
+  });
 
-    if (result['ok'] == true) {
-      _token   = result['token'] as String;
-      userName = result['user']  as String? ?? identifiant;
-      await _storage.saveToken(_token!);
-      await _storage.saveUserName(userName);
-      isLoggedIn = true;
-      await fetchData();
-      if (activeMode) _startPolling();
-    } else {
-      loginError = result['error'] as String? ?? 'Connexion échouée.';
-    }
-    isLoading = false;
-    notifyListeners();
-  }
+  factory Devoir.fromJson(Map<String, dynamic> j) => Devoir(
+    id:        j['id']         as String,
+    matiere:   j['matiere']    as String,
+    pourLe:    j['pour_le']    as String,
+    donneLe:   j['donne_le']   as String,
+    type:      j['type']       as String,
+    detailUrl: j['detail_url'] as String?,
+    fait:      j['fait']       as bool? ?? false,
+  );
+}
 
-  // ── Restore session silencieuse au démarrage ───────────────────────────────
-  Future<void> _tryRestoreSession() async {
-    final result = await _api!.fetchData(_token!);
-    if (result['ok'] == true) {
-      _parseDataResult(result);
-      isLoggedIn = true;
-      if (activeMode) _startPolling();
-    } else {
-      // Token expiré
-      _token = null;
-      await _storage.deleteToken();
-    }
-  }
+class ServerNotif {
+  final String type;
+  final String title;
+  final String body;
 
-  // ── Fetch data ─────────────────────────────────────────────────────────────
-  Future<void> fetchData() async {
-    if (_token == null || _api == null) return;
-    dataLoading = true;
-    notifyListeners();
+  const ServerNotif({required this.type, required this.title, required this.body});
 
-    final result = await _api!.fetchData(_token!);
-    if (result['ok'] == true) {
-      _parseDataResult(result);
-    } else {
-      // Session expirée côté serveur
-      isLoggedIn = false;
-      _token = null;
-      await _storage.deleteToken();
-    }
-    dataLoading = false;
-    notifyListeners();
-  }
-
-  void _parseDataResult(Map<String, dynamic> result) {
-    notes = (result['notes'] as List? ?? [])
-        .map((e) => NoteMatiere.fromJson(e as Map<String, dynamic>))
-        .toList();
-    devoirs = (result['devoirs'] as List? ?? [])
-        .map((e) => Devoir.fromJson(e as Map<String, dynamic>))
-        .toList();
-
-    // Notifs locales
-    for (final n in (result['notifications'] as List? ?? [])) {
-      final notif = ServerNotif.fromJson(n as Map<String, dynamic>);
-      if (notif.type == 'note'   && notifNotes)   _notifs.show(notif.title, notif.body);
-      if (notif.type == 'devoir' && notifDevoirs) _notifs.show(notif.title, notif.body);
-    }
-  }
-
-  // ── Détail devoir ──────────────────────────────────────────────────────────
-  Future<DevoirSections?> fetchDevoirDetail(String url) async {
-    if (_token == null || _api == null) return null;
-    return _api!.fetchDevoirDetail(_token!, url);
-  }
-
-  // ── Polling 30s ───────────────────────────────────────────────────────────
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => fetchData());
-  }
-  void stopPolling()  { _pollTimer?.cancel(); _pollTimer = null; }
-  void startPolling() { if (isLoggedIn) _startPolling(); }
-
-  // ── Prefs setters ──────────────────────────────────────────────────────────
-  Future<void> setNotifNotes(bool v)   async { notifNotes   = v; await _storage.setNotifNotes(v);   notifyListeners(); }
-  Future<void> setNotifDevoirs(bool v) async { notifDevoirs = v; await _storage.setNotifDevoirs(v); notifyListeners(); }
-  Future<void> setActiveMode(bool v)   async {
-    activeMode = v; await _storage.setActiveMode(v);
-    if (v) _startPolling(); else stopPolling();
-    notifyListeners();
-  }
-  Future<void> setPrefsSet(bool v)     async { prefsSet = v; await _storage.setPrefsSet(v); notifyListeners(); }
-  Future<void> setServerUrl(String v)  async { serverUrl = v; await _storage.saveServerUrl(v); notifyListeners(); }
-
-  // ── Toggle devoir fait ─────────────────────────────────────────────────────
-  void toggleDevoir(String id) {
-    final idx = devoirs.indexWhere((d) => d.id == id);
-    if (idx != -1) { devoirs[idx].fait = !devoirs[idx].fait; notifyListeners(); }
-  }
-
-  // ── Logout ─────────────────────────────────────────────────────────────────
-  Future<void> logout() async {
-    if (_token != null && _api != null) await _api!.logout(_token!);
-    stopPolling();
-    _token = null; isLoggedIn = false; prefsSet = false;
-    notes = []; devoirs = []; userName = '';
-    await _storage.clearAll();
-    notifyListeners();
-  }
+  factory ServerNotif.fromJson(Map<String, dynamic> j) => ServerNotif(
+    type:  j['type']  as String,
+    title: j['title'] as String,
+    body:  j['body']  as String,
+  );
 }
