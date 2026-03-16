@@ -6,7 +6,7 @@ import 'services/app_state.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
 import 'services/notification_service.dart';
-import 'screens/root_screen.dart';
+import 'services/screens/root_screen.dart';
 
 const String _bgTask = 'ent_refresh';
 
@@ -60,14 +60,17 @@ void main() async {
 class ENTApp extends StatelessWidget {
   const ENTApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Mon ENT',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F80ED), brightness: Brightness.dark),
-      useMaterial3: true,
-      scaffoldBackgroundColor: Colors.transparent,
+  Widget build(BuildContext context) => ChangeNotifierProvider(
+    create: (_) => AppState()..init(),
+    child: MaterialApp(
+      title: 'Mon ENT',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F80ED), brightness: Brightness.dark),
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.transparent,
+      ),
+      home: const RootScreen(),
     ),
-    home: const RootScreen(),
   );
 }
