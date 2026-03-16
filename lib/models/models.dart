@@ -1,5 +1,12 @@
 import 'package:flutter/painting.dart';
 
+class Appreciation {
+  final String label;
+  final Color color;
+  final String tip;
+  const Appreciation({required this.label, required this.color, required this.tip});
+}
+
 class NoteEval {
   final String id;
   final double valeur;
@@ -26,15 +33,15 @@ class NoteEval {
     coefficient:  (j['coefficient'] as num).toDouble(),
   );
 
-  String get appreciation {
+  Appreciation get appreciation {
     final p = valeur / bareme * 100;
-    if (p >= 90) return 'Excellent ! 🏆';
-    if (p >= 80) return 'Très bien ! 🎉';
-    if (p >= 70) return 'Bien ! 👍';
-    if (p >= 60) return 'Correct 😊';
-    if (p >= 50) return 'Peut mieux faire 💪';
-    if (p >= 40) return 'Insuffisant 😬';
-    return 'À rattraper 💡';
+    if (p >= 90) return const Appreciation(label: 'Excellent ! 🏆', color: Color(0xFF6FCF97), tip: 'Continue comme ça !');
+    if (p >= 80) return const Appreciation(label: 'Très bien ! 🎉', color: Color(0xFF6FCF97), tip: 'Super travail !');
+    if (p >= 70) return const Appreciation(label: 'Bien ! 👍',      color: Color(0xFF56CCF2), tip: 'Bon travail !');
+    if (p >= 60) return const Appreciation(label: 'Correct 😊',     color: Color(0xFFF2994A), tip: 'Peut mieux faire !');
+    if (p >= 50) return const Appreciation(label: 'Peut mieux faire 💪', color: Color(0xFFF2994A), tip: 'Courage !');
+    if (p >= 40) return const Appreciation(label: 'Insuffisant 😬', color: Color(0xFFEB5757), tip: 'Il faut travailler davantage.');
+    return const Appreciation(label: 'À rattraper 💡', color: Color(0xFFEB5757), tip: 'Ne lâche pas !');
   }
 
   String get valeurStr => valeur == valeur.roundToDouble()
@@ -119,6 +126,3 @@ class ServerNotif {
     body:  j['body']  as String,
   );
 }
-
-// ── Couleur (import sans dart:ui) ────────────────────────────────────────────
-// ignore: depend_on_referenced_packages
