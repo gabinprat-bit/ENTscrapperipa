@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/app_state.dart';
-import '../../models/models.dart';
-import '../../widgets/devoir_detail_sheet.dart';
+import '../services/app_state.dart';
+import '../models/models.dart';
+import '../widgets/devoir_detail_sheet.dart';
 
 const _palette = [
   Color(0xFF2F80ED), Color(0xFF27AE60), Color(0xFFF2994A), Color(0xFFEB5757),
@@ -78,8 +78,12 @@ class _Header extends StatelessWidget {
   }
 
   void _openSettings(BuildContext ctx, AppState state) {
-    showModalBottomSheet(ctx: ctx, isScrollControlled: true, backgroundColor: Colors.transparent,
-        builder: (_) => ChangeNotifierProvider.value(value: state, child: const _SettingsSheet()));
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(value: state, child: const _SettingsSheet()),
+    );
   }
 
   void _confirmLogout(BuildContext ctx, AppState state) {
@@ -161,7 +165,7 @@ class _Tab extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
       alignment: Alignment.center,
       child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-          color: current == idx ? Colors.white : Colors.white45)),
+          color: current == idx ? Colors.white : Colors.white.withOpacity(0.45))),
     ),
   ));
 }
@@ -353,7 +357,7 @@ class _DevoirsTab extends StatelessWidget {
             devoir: d,
             onTap: () => showModalBottomSheet(context: ctx, isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (_) => ChangeNotifierProvider.value(value: state, child: DevoirDetailSheet(devoir: d))),
+                builder: (_) => DevoirDetailSheet(devoir: d)),
           )),
         ]).toList(),
       );
@@ -418,74 +422,302 @@ class _DevoirCard extends StatelessWidget {
 //  SETTINGS SHEET
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _SettingsSheet extends StatefulWidget {
+class _SettingsSheet extends StatelessWidget {
   const _SettingsSheet();
-  @override
-  State<_SettingsSheet> createState() => _SettingsSheetState();
-}
-
-class _SettingsSheetState extends State<_SettingsSheet> {
-  late TextEditingController _urlCtrl;
-  @override
-  void initState() { super.initState(); _urlCtrl = TextEditingController(text: context.read<AppState>().serverUrl); }
-  @override
-  void dispose() { _urlCtrl.dispose(); super.dispose(); }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(builder: (ctx, state, _) => Container(
-      decoration: const BoxDecoration(color: Color(0xFF060A18), borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: const BoxDecoration(
+        color: Color(0xFF060A18),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       child: SafeArea(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+          Center(child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 22),
           Text('Paramètres', style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 20),
+
           _SLbl('NOTIFICATIONS'),
-          _STile('Nouvelles notes', '📊', state.notifNotes, state.setNotifNotes),
+          _STile('Nouvelles notes',  '📊', state.notifNotes,   state.setNotifNotes),
           _STile('Nouveaux devoirs', '📚', state.notifDevoirs, state.setNotifDevoirs),
           const SizedBox(height: 16),
+
           _SLbl('COMPORTEMENT'),
           _STile('Mode actif (30s)', '⚡', state.activeMode, state.setActiveMode),
           const SizedBox(height: 16),
-          _SLbl('SERVEUR'),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white12)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('URL du serveur', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _urlCtrl,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'https://mon-serveur.com', hintStyle: const TextStyle(color: Colors.white30),
-                  filled: true, fillColor: Colors.white.withOpacity(.04),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
-                ),
-                onChanged: (v) => state.setServerUrl(v.trim()),
+
+          // ── Bouton Admin ──
+          _SLbl('ADMINISTRATION'),
+          GestureDetector(
+            onTap: () => _showAdminDialog(context, state),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2994A).withOpacity(.07),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF2994A).withOpacity(.25)),
               ),
-              const SizedBox(height: 8),
-              Text('Surveillance toutes les 30s · auto-reconnexion', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(.4))),
-            ]),
+              child: Row(children: [
+                const Text('🔐', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Panneau Admin', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text(
+                    state.serverUrl.isNotEmpty ? 'Serveur : ${state.serverUrl}' : '⚠️ Aucun serveur configuré',
+                    style: TextStyle(fontSize: 11, color: state.serverUrl.isNotEmpty ? Colors.white38 : const Color(0xFFF2994A)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                ])),
+                const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
+              ]),
+            ),
           ),
           const SizedBox(height: 20),
+
+          // ── Déconnexion ──
           SizedBox(width: double.infinity, child: ElevatedButton.icon(
             onPressed: () { Navigator.pop(context); state.logout(); },
             icon: const Icon(Icons.logout_rounded, size: 18),
             label: const Text('Se déconnecter'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEB5757).withOpacity(.15), foregroundColor: const Color(0xFFEB5757),
+              backgroundColor: const Color(0xFFEB5757).withOpacity(.15),
+              foregroundColor: const Color(0xFFEB5757),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFEB5757), width: .5)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFFEB5757), width: .5)),
             ),
           )),
           const SizedBox(height: 10),
-          Center(child: Text('Version 1.0 · Polling 30s', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(.25)))),
+          Center(child: Text('Version 1.0 · Polling 30s',
+              style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(.25)))),
+        ]),
+      )),
+    ));
+  }
+
+  void _showAdminDialog(BuildContext context, AppState state) {
+    final codeCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF060A18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Text('🔐 ', style: TextStyle(fontSize: 20)),
+          Text('Accès Admin', style: GoogleFonts.sora(color: Colors.white, fontWeight: FontWeight.w700)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Entre le code admin pour accéder aux paramètres serveur.',
+              style: TextStyle(color: Colors.white.withOpacity(.5), fontSize: 13)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: codeCtrl,
+            obscureText: true,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+            decoration: InputDecoration(
+              hintText: '••••••••',
+              hintStyle: const TextStyle(color: Colors.white30),
+              filled: true, fillColor: Colors.white.withOpacity(.05),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF2994A))),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler', style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (codeCtrl.text == 'root1234') {
+                Navigator.pop(context);
+                _showAdminPanel(context, state);
+              } else {
+                codeCtrl.clear();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Code incorrect ❌'),
+                    backgroundColor: Color(0xFFEB5757),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF2994A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAdminPanel(BuildContext context, AppState state) {
+    final urlCtrl = TextEditingController(text: state.serverUrl);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: state,
+        child: _AdminPanel(urlCtrl: urlCtrl),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ADMIN PANEL
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _AdminPanel extends StatefulWidget {
+  final TextEditingController urlCtrl;
+  const _AdminPanel({required this.urlCtrl});
+  @override
+  State<_AdminPanel> createState() => _AdminPanelState();
+}
+
+class _AdminPanelState extends State<_AdminPanel> {
+  bool _saved = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(builder: (ctx, state, _) => Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF060A18),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Handle
+          Center(child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 22),
+
+          // Titre
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2994A).withOpacity(.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF2994A).withOpacity(.3)),
+              ),
+              child: const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFF2994A), letterSpacing: 1.5)),
+            ),
+            const SizedBox(width: 12),
+            Text('Configuration serveur', style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+          ]),
+          const SizedBox(height: 6),
+          Text('Cette URL est partagée pour tous les utilisateurs.',
+              style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(.4))),
+          const SizedBox(height: 20),
+
+          // Champ URL
+          const Text('URL DU SERVEUR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white30, letterSpacing: 1.0)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: widget.urlCtrl,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            textCapitalization: TextCapitalization.none,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            onChanged: (_) { if (_saved) setState(() => _saved = false); },
+            decoration: InputDecoration(
+              hintText: 'http://51.83.6.7:20312',
+              hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+              filled: true, fillColor: Colors.white.withOpacity(.05),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border:        OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.white12)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.white12)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFF2994A), width: 1.5)),
+              suffixIcon: widget.urlCtrl.text.isNotEmpty
+                ? IconButton(icon: const Icon(Icons.clear_rounded, color: Colors.white38, size: 18),
+                    onPressed: () { widget.urlCtrl.clear(); setState(() {}); })
+                : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Statut URL actuelle
+          if (state.serverUrl.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF27AE60).withOpacity(.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF6FCF97).withOpacity(.2)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF6FCF97), size: 14),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Actuel : ${state.serverUrl}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF6FCF97)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2994A).withOpacity(.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF2994A).withOpacity(.2)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.warning_rounded, color: Color(0xFFF2994A), size: 14),
+                SizedBox(width: 8),
+                Text('Aucun serveur configuré — les utilisateurs ne peuvent pas se connecter.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFF2994A))),
+              ]),
+            ),
+          const SizedBox(height: 20),
+
+          // Boutons
+          Row(children: [
+            Expanded(child: ElevatedButton.icon(
+              onPressed: () async {
+                final url = widget.urlCtrl.text.trim();
+                if (url.isEmpty) return;
+                await state.setServerUrl(url);
+                setState(() => _saved = true);
+                FocusScope.of(context).unfocus();
+              },
+              icon: Icon(_saved ? Icons.check_rounded : Icons.save_rounded, size: 18),
+              label: Text(_saved ? 'Sauvegardé ✅' : 'Sauvegarder'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _saved ? const Color(0xFF27AE60) : const Color(0xFFF2994A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(.07),
+                foregroundColor: Colors.white60,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Colors.white12)),
+              ),
+              child: const Text('Fermer'),
+            )),
+          ]),
+          const SizedBox(height: 8),
+          Center(child: Text('Code admin requis pour modifier · root1234',
+              style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(.2)))),
         ]),
       )),
     ));
