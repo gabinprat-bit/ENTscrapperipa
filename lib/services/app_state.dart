@@ -11,6 +11,7 @@ class AppState extends ChangeNotifier {
   bool   isLoading   = false;
   String loginError  = '';
   String userName    = '';
+  // URL du serveur KataBump — pré-remplie, modifiable dans Settings
   String serverUrl   = 'http://51.83.6.7:20312';
   String? _token;
 
@@ -41,7 +42,8 @@ class AppState extends ChangeNotifier {
 
   // ── Init ───────────────────────────────────────────────────────────────────
   Future<void> init() async {
-    serverUrl     = await _storage.getServerUrl() ?? '';
+    // Charger l'URL sauvegardée, sinon garder la valeur par défaut hardcodée
+    serverUrl = await _storage.getServerUrl() ?? serverUrl;
     notifNotes    = await _storage.getNotifNotes();
     notifDevoirs  = await _storage.getNotifDevoirs();
     activeMode    = await _storage.getActiveMode();
@@ -134,7 +136,8 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Détail devoir ──────────────────────────────────────────────────────────
-  Future<DevoirSections?> fetchDevoirDetail(String url) async {
+  // Correction : retourne Map<String, dynamic> en attendant le modèle DevoirSections
+  Future<Map<String, dynamic>?> fetchDevoirDetail(String url) async {
     if (_token == null || _api == null) return null;
     return _api!.fetchDevoirDetail(_token!, url);
   }
