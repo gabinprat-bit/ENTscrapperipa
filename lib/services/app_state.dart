@@ -11,7 +11,7 @@ class AppState extends ChangeNotifier {
   bool   isLoading   = false;
   String loginError  = '';
   String userName    = '';
-  String serverUrl   = '';
+  String serverUrl   = 'http://51.83.6.7:20312';
   String? _token;
 
   // ── Prefs ──────────────────────────────────────────────────────────────────
