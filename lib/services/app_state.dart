@@ -139,7 +139,8 @@ class AppState extends ChangeNotifier {
   // Correction : retourne Map<String, dynamic> en attendant le modèle DevoirSections
   Future<Map<String, dynamic>?> fetchDevoirDetail(String url) async {
     if (_token == null || _api == null) return null;
-    return _api!.fetchDevoirDetail(_token!, url);
+   final result = await _api!.fetchDevoirDetail(_token!, url);
+return result as Map<String, dynamic>?;
   }
 
   // ── Polling 30s ───────────────────────────────────────────────────────────
