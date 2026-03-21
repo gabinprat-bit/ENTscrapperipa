@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/app_state.dart';
-import '../models/models.dart';
-import '../widgets/devoir_detail_sheet.dart';
+import '../../services/app_state.dart';
+import '../../models/models.dart';
+import '../../widgets/devoir_detail_sheet.dart';
 
 const _palette = [
   Color(0xFF2F80ED), Color(0xFF27AE60), Color(0xFFF2994A), Color(0xFFEB5757),
