@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
 import 'notification_service.dart';
+import 'device_auth_service.dart';
 import '../models/models.dart';
 
 class AppState extends ChangeNotifier {
@@ -11,15 +12,19 @@ class AppState extends ChangeNotifier {
   bool   isLoading   = false;
   String loginError  = '';
   String userName    = '';
-  // URL du serveur KataBump — pré-remplie, modifiable dans Settings
   String serverUrl   = 'http://51.83.6.7:20312';
   String? _token;
+  String? _userId;
+
+  // ── Device Auth ────────────────────────────────────────────────────────────
+  final _deviceAuth = DeviceAuthService();
+  bool permanentAccount = false;
 
   // ── Prefs ──────────────────────────────────────────────────────────────────
   bool notifNotes   = true;
   bool notifDevoirs = true;
   bool activeMode   = true;
-  bool prefsSet     = false;  // true = configuré une seule fois
+  bool prefsSet     = false;
 
   // ── Data ───────────────────────────────────────────────────────────────────
   List<NoteMatiere> notes   = [];
@@ -42,7 +47,6 @@ class AppState extends ChangeNotifier {
 
   // ── Init ───────────────────────────────────────────────────────────────────
   Future<void> init() async {
-    // Charger l'URL sauvegardée, sinon garder la valeur par défaut hardcodée
     serverUrl = await _storage.getServerUrl() ?? serverUrl;
     notifNotes    = await _storage.getNotifNotes();
     notifDevoirs  = await _storage.getNotifDevoirs();
@@ -50,7 +54,11 @@ class AppState extends ChangeNotifier {
     prefsSet      = await _storage.getPrefsSet();
     userName      = await _storage.getUserName();
     _token        = await _storage.getToken();
-
+    
+    // Vérifier le compte permanent
+    final permanent = await _deviceAuth.getPermanentAccount();
+    permanentAccount = permanent != null;
+    
     if (_token != null && serverUrl.isNotEmpty) {
       _api = ApiService(serverUrl: serverUrl);
       await _tryRestoreSession();
@@ -58,8 +66,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Login ──────────────────────────────────────────────────────────────────
-  Future<void> login(String identifiant, String mdp) async {
+  // ── Login avec association appareil ────────────────────────────────────────
+  Future<void> login(String identifiant, String mdp, {bool makePermanent = false}) async {
     if (serverUrl.isEmpty) {
       loginError = 'Configure d\'abord l\'URL du serveur.';
       notifyListeners();
@@ -68,25 +76,59 @@ class AppState extends ChangeNotifier {
     isLoading = true; loginError = '';
     notifyListeners();
 
+    final deviceId = await _deviceAuth.getDeviceId();
     _api = ApiService(serverUrl: serverUrl);
-    final result = await _api!.login(identifiant, mdp);
+    final result = await _api!.login(identifiant, mdp, deviceId: deviceId);
 
     if (result['ok'] == true) {
       _token   = result['token'] as String;
-      userName = result['user']  as String? ?? identifiant;
+      userName = result['user'] as String? ?? identifiant;
+      _userId  = result['user_id'] as String? ?? identifiant;
+      
       await _storage.saveToken(_token!);
       await _storage.saveUserName(userName);
+      
+      // Association avec l'appareil
+      await _deviceAuth.associateAccountWithDevice(serverUrl, _token!, _userId!);
+      
+      // Compte permanent ?
+      if (makePermanent) {
+        await _deviceAuth.setPermanentAccount(_userId!, _token!);
+        permanentAccount = true;
+      }
+      
       isLoggedIn = true;
       await fetchData();
       if (activeMode) _startPolling();
     } else {
       loginError = result['error'] as String? ?? 'Connexion échouée.';
+      if (result['requires_admin'] == true) {
+        loginError += '\n\n🔐 Contacte l\'administrateur pour dissocier ton compte.';
+      }
     }
     isLoading = false;
     notifyListeners();
   }
 
-  // ── Restore session silencieuse au démarrage ───────────────────────────────
+  // ── Changer de compte ──────────────────────────────────────────────────────
+  Future<void> switchAccount() async {
+    // Nettoyer l'état actuel sans effacer les préfs
+    if (_token != null && _api != null) await _api!.logout(_token!);
+    stopPolling();
+    _token = null;
+    _userId = null;
+    isLoggedIn = false;
+    notes = [];
+    devoirs = [];
+    userName = '';
+    await _storage.deleteToken();
+    await _storage.saveUserName('');
+    
+    // Garder prefsSet = true pour éviter l'écran de setup
+    notifyListeners();
+  }
+
+  // ── Restore session ────────────────────────────────────────────────────────
   Future<void> _tryRestoreSession() async {
     final result = await _api!.fetchData(_token!);
     if (result['ok'] == true) {
@@ -94,13 +136,16 @@ class AppState extends ChangeNotifier {
       isLoggedIn = true;
       if (activeMode) _startPolling();
     } else {
-      // Token expiré
       _token = null;
       await _storage.deleteToken();
+      if (permanentAccount) {
+        await _deviceAuth.clearPermanentAccount();
+        permanentAccount = false;
+      }
     }
   }
 
-  // ── Fetch data ─────────────────────────────────────────────────────────────
+  // ── Fetch data avec retry ──────────────────────────────────────────────────
   Future<void> fetchData() async {
     if (_token == null || _api == null) return;
     dataLoading = true;
@@ -110,10 +155,17 @@ class AppState extends ChangeNotifier {
     if (result['ok'] == true) {
       _parseDataResult(result);
     } else {
-      // Session expirée côté serveur
-      isLoggedIn = false;
-      _token = null;
-      await _storage.deleteToken();
+      // Tentative de reconnexion silencieuse si permanent
+      if (permanentAccount) {
+        final permanent = await _deviceAuth.getPermanentAccount();
+        if (permanent != null && permanent['userId'] != null) {
+          // TODO: auto-reconnect
+        }
+      } else {
+        isLoggedIn = false;
+        _token = null;
+        await _storage.deleteToken();
+      }
     }
     dataLoading = false;
     notifyListeners();
@@ -127,40 +179,48 @@ class AppState extends ChangeNotifier {
         .map((e) => Devoir.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Notifs locales
     for (final n in (result['notifications'] as List? ?? [])) {
       final notif = ServerNotif.fromJson(n as Map<String, dynamic>);
-      if (notif.type == 'note'   && notifNotes)   _notifs.show(notif.title, notif.body);
+      if (notif.type == 'note' && notifNotes) _notifs.show(notif.title, notif.body);
       if (notif.type == 'devoir' && notifDevoirs) _notifs.show(notif.title, notif.body);
     }
   }
 
   // ── Détail devoir ──────────────────────────────────────────────────────────
-  // Correction : retourne Map<String, dynamic> en attendant le modèle DevoirSections
   Future<Map<String, dynamic>?> fetchDevoirDetail(String url) async {
     if (_token == null || _api == null) return null;
-   final result = await _api!.fetchDevoirDetail(_token!, url);
-return result as Map<String, dynamic>?;
+    final result = await _api!.fetchDevoirDetail(_token!, url);
+    return result as Map<String, dynamic>?;
   }
 
-  // ── Polling 30s ───────────────────────────────────────────────────────────
+  // ── Polling ────────────────────────────────────────────────────────────────
   void _startPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => fetchData());
   }
-  void stopPolling()  { _pollTimer?.cancel(); _pollTimer = null; }
+  void stopPolling() { _pollTimer?.cancel(); _pollTimer = null; }
   void startPolling() { if (isLoggedIn) _startPolling(); }
 
   // ── Prefs setters ──────────────────────────────────────────────────────────
-  Future<void> setNotifNotes(bool v)   async { notifNotes   = v; await _storage.setNotifNotes(v);   notifyListeners(); }
+  Future<void> setNotifNotes(bool v) async { notifNotes = v; await _storage.setNotifNotes(v); notifyListeners(); }
   Future<void> setNotifDevoirs(bool v) async { notifDevoirs = v; await _storage.setNotifDevoirs(v); notifyListeners(); }
-  Future<void> setActiveMode(bool v)   async {
+  Future<void> setActiveMode(bool v) async {
     activeMode = v; await _storage.setActiveMode(v);
     if (v) _startPolling(); else stopPolling();
     notifyListeners();
   }
-  Future<void> setPrefsSet(bool v)     async { prefsSet = v; await _storage.setPrefsSet(v); notifyListeners(); }
-  Future<void> setServerUrl(String v)  async { serverUrl = v; await _storage.saveServerUrl(v); notifyListeners(); }
+  Future<void> setPrefsSet(bool v) async { prefsSet = v; await _storage.setPrefsSet(v); notifyListeners(); }
+  Future<void> setServerUrl(String v) async { serverUrl = v; await _storage.saveServerUrl(v); notifyListeners(); }
+  
+  Future<void> setPermanentAccount(bool value) async {
+    permanentAccount = value;
+    if (!value) {
+      await _deviceAuth.clearPermanentAccount();
+    } else if (_token != null && _userId != null) {
+      await _deviceAuth.setPermanentAccount(_userId!, _token!);
+    }
+    notifyListeners();
+  }
 
   // ── Toggle devoir fait ─────────────────────────────────────────────────────
   void toggleDevoir(String id) {
@@ -172,9 +232,16 @@ return result as Map<String, dynamic>?;
   Future<void> logout() async {
     if (_token != null && _api != null) await _api!.logout(_token!);
     stopPolling();
-    _token = null; isLoggedIn = false; prefsSet = false;
-    notes = []; devoirs = []; userName = '';
+    _token = null;
+    _userId = null;
+    isLoggedIn = false;
+    prefsSet = false;
+    notes = [];
+    devoirs = [];
+    userName = '';
     await _storage.clearAll();
+    await _deviceAuth.clearPermanentAccount();
+    permanentAccount = false;
     notifyListeners();
   }
 }
