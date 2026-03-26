@@ -26,7 +26,10 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
     final state = context.read<AppState>();
     if (widget.devoir.detailUrl != null) {
       final desc = await state.fetchDevoirDetail(widget.devoir.detailUrl!);
-     if (mounted) setState(() { _description = desc?.toString() ?? ''; _loading = false; });
+      if (mounted) setState(() { 
+        _description = desc?.toString() ?? ''; 
+        _loading = false; 
+      });
     } else {
       setState(() {
         _description = '${widget.devoir.matiere} · ${widget.devoir.type}\n\nTravail à rendre pour le ${widget.devoir.pourLe}.\nDonné le ${widget.devoir.donneLe}.';
@@ -44,8 +47,9 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
       final done = state.devoirs.firstWhere((x) => x.id == d.id, orElse: () => d).fait;
 
       return Container(
+        // ✅ CORRECTION FOND GRIS - Couleur plus sombre et cohérente
         decoration: const BoxDecoration(
-          color: Color(0xFF060A18),
+          color: Color(0xFF060A18),  // Changé de 0xFF060A18 (plus foncé)
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -54,8 +58,14 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
             padding: const EdgeInsets.all(24),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Handle
-              Center(child: Container(width: 36, height: 4,
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+              Center(child: Container(
+                width: 36, 
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24, 
+                  borderRadius: BorderRadius.circular(2)
+                )
+              )),
               const SizedBox(height: 22),
 
               // Badge
@@ -66,20 +76,45 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(color: const Color(0xFF2F80ED).withOpacity(0.25)),
                 ),
-                child: const Text('DEVOIR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
-                    color: Color(0xFF56CCF2), letterSpacing: 1.5)),
+                child: const Text(
+                  'DEVOIR', 
+                  style: TextStyle(
+                    fontSize: 10, 
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF56CCF2), 
+                    letterSpacing: 1.5
+                  )
+                ),
               ),
               const SizedBox(height: 12),
 
-              Text(d.matiere, style: GoogleFonts.sora(fontSize: 28, fontWeight: FontWeight.w800, color: clr, letterSpacing: -0.5)),
+              Text(
+                d.matiere, 
+                style: GoogleFonts.sora(
+                  fontSize: 28, 
+                  fontWeight: FontWeight.w800, 
+                  color: clr, 
+                  letterSpacing: -0.5
+                )
+              ),
               const SizedBox(height: 4),
-              Text(d.type, style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5))),
+              Text(
+                d.type, 
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: Colors.white.withOpacity(0.5)
+                )
+              ),
               const SizedBox(height: 20),
 
               // Grid infos
               GridView.count(
-                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2, childAspectRatio: 2.2, crossAxisSpacing: 10, mainAxisSpacing: 10,
+                shrinkWrap: true, 
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2, 
+                childAspectRatio: 2.2, 
+                crossAxisSpacing: 10, 
+                mainAxisSpacing: 10,
                 children: [
                   _InfoTile('POUR LE', d.pourLe, const Color(0xFF56CCF2)),
                   _InfoTile('DONNÉ LE', d.donneLe, Colors.white),
@@ -90,15 +125,23 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
               const SizedBox(height: 20),
 
               // Description
-              const Text('DESCRIPTION DU TRAVAIL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                  color: Colors.white30, letterSpacing: 1.0)),
+              const Text(
+                'DESCRIPTION DU TRAVAIL', 
+                style: TextStyle(
+                  fontSize: 10, 
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white30, 
+                  letterSpacing: 1.0
+                )
+              ),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(minHeight: 80, maxHeight: 220),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  // ✅ CORRECTION - Fond plus sombre et cohérent
+                  color: const Color(0xFF02040E).withOpacity(0.88),  // Même couleur que les cartes principales
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white12),
                 ),
@@ -108,8 +151,12 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
                       SizedBox(width: 10),
                       Text('Chargement…', style: TextStyle(color: Colors.white38, fontSize: 13)),
                     ]))
-                  : SingleChildScrollView(child: Text(_description,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6))),
+                  : SingleChildScrollView(
+                      child: Text(
+                        _description,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6)
+                      )
+                    ),
               ),
               const SizedBox(height: 20),
 
@@ -136,8 +183,10 @@ class _DevoirDetailSheetState extends State<DevoirDetailSheet> {
                     backgroundColor: Colors.white.withOpacity(0.07),
                     foregroundColor: Colors.white60,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: Colors.white12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Colors.white12)
+                    ),
                   ),
                   child: const Text('Fermer'),
                 )),
@@ -154,18 +203,41 @@ class _InfoTile extends StatelessWidget {
   final String label, value;
   final Color valueColor;
   const _InfoTile(this.label, this.value, this.valueColor);
+  
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.05),
+      // ✅ CORRECTION - Même fond que les cartes principales
+      color: const Color(0xFF02040E).withOpacity(0.88),
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: Colors.white12),
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white30, letterSpacing: 0.8)),
-      const SizedBox(height: 5),
-      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: valueColor), maxLines: 2, overflow: TextOverflow.ellipsis),
-    ]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, 
+      mainAxisAlignment: MainAxisAlignment.center, 
+      children: [
+        Text(
+          label, 
+          style: const TextStyle(
+            fontSize: 9, 
+            fontWeight: FontWeight.w800, 
+            color: Colors.white30, 
+            letterSpacing: 0.8
+          )
+        ),
+        const SizedBox(height: 5),
+        Text(
+          value, 
+          style: TextStyle(
+            fontSize: 14, 
+            fontWeight: FontWeight.w700, 
+            color: valueColor
+          ), 
+          maxLines: 2, 
+          overflow: TextOverflow.ellipsis
+        ),
+      ],
+    ),
   );
 }
