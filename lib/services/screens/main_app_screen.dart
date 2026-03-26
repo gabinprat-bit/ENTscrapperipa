@@ -63,6 +63,9 @@ class _Header extends StatelessWidget {
               Row(children: [
                 _HBtn(Icons.refresh_rounded, () => context.read<AppState>().fetchData()),
                 const SizedBox(width: 8),
+                // 🔄 BOUTON CHANGER DE COMPTE (NOUVEAU)
+                _HBtn(Icons.swap_horiz_rounded, () => _showSwitchAccountDialog(context, state)),
+                const SizedBox(width: 8),
                 _HBtn(Icons.settings_rounded, () => _openSettings(context, state)),
                 const SizedBox(width: 8),
                 _HBtn(Icons.power_settings_new_rounded, () => _confirmLogout(context, state)),
@@ -96,6 +99,78 @@ class _Header extends StatelessWidget {
         TextButton(onPressed: () { Navigator.pop(ctx); state.logout(); }, child: const Text('Déconnecter', style: TextStyle(color: Color(0xFFEB5757)))),
       ],
     ));
+  }
+
+  // 🔄 NOUVELLE MÉTHODE POUR CHANGER DE COMPTE
+  void _showSwitchAccountDialog(BuildContext ctx, AppState state) {
+    showDialog(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF060A18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Changer de compte', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Veux-tu dissocier ce compte de ton appareil ?', 
+                style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2994A).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline, color: Color(0xFFF2994A), size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Si tu changes de compte, le compte actuel ne sera plus associé à cet appareil.',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.7)),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: CheckboxListTile(
+                  value: state.permanentAccount,
+                  onChanged: (v) => state.setPermanentAccount(v ?? false),
+                  title: const Text('Compte permanent', 
+                      style: TextStyle(color: Colors.white, fontSize: 13)),
+                  subtitle: Text('Restera connecté après fermeture', 
+                      style: TextStyle(color: Colors.white54, fontSize: 10)),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: const Color(0xFF6FCF97),
+                ),
+              ),
+            ]),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await state.switchAccount();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2F80ED),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Changer de compte'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -194,10 +269,8 @@ class _NotesTabState extends State<_NotesTab> {
       return ListView(
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 100),
         children: [
-          // ── Moyenne générale ──
           if (state.moyenneGenerale != null) _MoyenneBanner(moy: state.moyenneGenerale!, count: state.notes.length),
           const SizedBox(height: 4),
-          // ── Notes par matière ──
           ...state.notes.map((m) => _NoteCard(
             matiere: m,
             expanded: _expanded.contains(m.matiere),
@@ -211,8 +284,6 @@ class _NotesTabState extends State<_NotesTab> {
     });
   }
 }
-
-// ── Moyenne générale banner ───────────────────────────────────────────────────
 
 class _MoyenneBanner extends StatelessWidget {
   final String moy;
@@ -247,8 +318,6 @@ class _MoyenneBanner extends StatelessWidget {
     ]),
   );
 }
-
-// ── Note card ─────────────────────────────────────────────────────────────────
 
 class _NoteCard extends StatelessWidget {
   final NoteMatiere matiere;
@@ -378,8 +447,11 @@ class _DevoirCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        // ✅ CORRECTION FOND GRIS - OPACITÉ MODIFIÉE
         decoration: BoxDecoration(
-          color: devoir.fait ? const Color(0xFF6FCF97).withOpacity(.05) : const Color(0xFF02040E).withOpacity(.88),
+          color: devoir.fait 
+              ? const Color(0xFF6FCF97).withOpacity(.08)   // MODIFIÉ (était .05)
+              : const Color(0xFF02040E).withOpacity(.92),  // MODIFIÉ (était .88)
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: devoir.fait ? const Color(0xFF6FCF97).withOpacity(.15) : Colors.white.withOpacity(.09)),
         ),
@@ -440,6 +512,11 @@ class _SettingsSheet extends StatelessWidget {
           Text('Paramètres', style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 20),
 
+          // 📊 Option compte permanent (NOUVEAU)
+          _SLbl('COMPTE'),
+          _STile('Compte permanent', '🔒', state.permanentAccount, state.setPermanentAccount),
+          const SizedBox(height: 16),
+
           _SLbl('NOTIFICATIONS'),
           _STile('Nouvelles notes',  '📊', state.notifNotes,   state.setNotifNotes),
           _STile('Nouveaux devoirs', '📚', state.notifDevoirs, state.setNotifDevoirs),
@@ -449,7 +526,6 @@ class _SettingsSheet extends StatelessWidget {
           _STile('Mode actif (30s)', '⚡', state.activeMode, state.setActiveMode),
           const SizedBox(height: 16),
 
-          // ── Bouton Admin ──
           _SLbl('ADMINISTRATION'),
           GestureDetector(
             onTap: () => _showAdminDialog(context, state),
@@ -477,7 +553,6 @@ class _SettingsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── Déconnexion ──
           SizedBox(width: double.infinity, child: ElevatedButton.icon(
             onPressed: () { Navigator.pop(context); state.logout(); },
             icon: const Icon(Icons.logout_rounded, size: 18),
@@ -601,12 +676,10 @@ class _AdminPanelState extends State<_AdminPanel> {
       child: SafeArea(child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Handle
           Center(child: Container(width: 36, height: 4,
               decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 22),
 
-          // Titre
           Row(children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -625,7 +698,6 @@ class _AdminPanelState extends State<_AdminPanel> {
               style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(.4))),
           const SizedBox(height: 20),
 
-          // Champ URL
           const Text('URL DU SERVEUR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white30, letterSpacing: 1.0)),
           const SizedBox(height: 8),
           TextField(
@@ -650,7 +722,6 @@ class _AdminPanelState extends State<_AdminPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          // Statut URL actuelle
           if (state.serverUrl.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -684,7 +755,6 @@ class _AdminPanelState extends State<_AdminPanel> {
             ),
           const SizedBox(height: 20),
 
-          // Boutons
           Row(children: [
             Expanded(child: ElevatedButton.icon(
               onPressed: () async {
@@ -733,6 +803,7 @@ class _SLbl extends StatelessWidget {
     child: Text(t, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white30, letterSpacing: 1.0)),
   );
 }
+
 class _STile extends StatelessWidget {
   final String label, icon;
   final bool value;
