@@ -63,7 +63,7 @@ class _Header extends StatelessWidget {
               Row(children: [
                 _HBtn(Icons.refresh_rounded, () => context.read<AppState>().fetchData()),
                 const SizedBox(width: 8),
-                // 🔄 BOUTON CHANGER DE COMPTE (NOUVEAU)
+                // 🔄 BOUTON CHANGER DE COMPTE
                 _HBtn(Icons.swap_horiz_rounded, () => _showSwitchAccountDialog(context, state)),
                 const SizedBox(width: 8),
                 _HBtn(Icons.settings_rounded, () => _openSettings(context, state)),
@@ -101,7 +101,7 @@ class _Header extends StatelessWidget {
     ));
   }
 
-  // 🔄 NOUVELLE MÉTHODE POUR CHANGER DE COMPTE
+  // 🔄 MÉTHODE POUR CHANGER DE COMPTE
   void _showSwitchAccountDialog(BuildContext ctx, AppState state) {
     showDialog(
       context: ctx,
@@ -447,11 +447,9 @@ class _DevoirCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        // ✅ CORRECTION FOND GRIS - OPACITÉ MODIFIÉE
+        // ✅ FOND REMIS COMME AVANT (pas de modification)
         decoration: BoxDecoration(
-          color: devoir.fait 
-              ? const Color(0xFF6FCF97).withOpacity(.08)   // MODIFIÉ (était .05)
-              : const Color(0xFF02040E).withOpacity(.92),  // MODIFIÉ (était .88)
+          color: devoir.fait ? const Color(0xFF6FCF97).withOpacity(.05) : const Color(0xFF02040E).withOpacity(.88),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: devoir.fait ? const Color(0xFF6FCF97).withOpacity(.15) : Colors.white.withOpacity(.09)),
         ),
@@ -512,7 +510,7 @@ class _SettingsSheet extends StatelessWidget {
           Text('Paramètres', style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 20),
 
-          // 📊 Option compte permanent (NOUVEAU)
+          // 📊 Option compte permanent
           _SLbl('COMPTE'),
           _STile('Compte permanent', '🔒', state.permanentAccount, state.setPermanentAccount),
           const SizedBox(height: 16),
