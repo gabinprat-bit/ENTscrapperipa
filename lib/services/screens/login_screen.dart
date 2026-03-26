@@ -13,6 +13,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _urlCtrl = TextEditingController();
   final _idCtrl  = TextEditingController();
   final _pwCtrl  = TextEditingController();
+  bool _permanent = false;  // <-- NOUVEAU
+  
   late AnimationController _ac;
   late Animation<double> _fade;
   late Animation<Offset>  _slide;
@@ -37,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void _login() {
     final state = context.read<AppState>();
     if (_urlCtrl.text.isNotEmpty) state.setServerUrl(_urlCtrl.text.trim());
-    state.login(_idCtrl.text.trim(), _pwCtrl.text.trim());
+    state.login(_idCtrl.text.trim(), _pwCtrl.text.trim(), makePermanent: _permanent);
   }
 
   @override
@@ -91,7 +93,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _field('IDENTIFIANT EDUCONNECT', 'g.nom00', _idCtrl, TextInputType.emailAddress, false),
         const SizedBox(height: 12),
         _field('MOT DE PASSE', '••••••••••', _pwCtrl, TextInputType.visiblePassword, true),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
+        
+        // ── Compte permanent (NOUVEAU) ──
+        Row(children: [
+          Checkbox(
+            value: _permanent,
+            onChanged: (v) => setState(() => _permanent = v ?? false),
+            activeColor: const Color(0xFF6FCF97),
+            side: const BorderSide(color: Colors.white38),
+          ),
+          const Text('Compte permanent', 
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const Spacer(),
+          TextButton(
+            onPressed: () => _showSwitchInfo(),
+            child: const Text('Changer de compte ?', 
+                style: TextStyle(color: Color(0xFF56CCF2), fontSize: 12)),
+          ),
+        ]),
+        
+        const SizedBox(height: 8),
 
         // Bouton
         SizedBox(width: double.infinity, height: 52,
@@ -132,6 +154,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ],
       ]),
+    );
+  }
+  
+  void _showSwitchInfo() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF060A18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Changer de compte', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Pour changer de compte, connecte-toi d\'abord, puis utilise le bouton "Changer de compte" dans les paramètres.\n\n'
+          'Le compte permanent reste associé à ton appareil même après fermeture de l\'app.',
+          style: TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: Color(0xFF56CCF2))),
+          ),
+        ],
+      ),
     );
   }
 
